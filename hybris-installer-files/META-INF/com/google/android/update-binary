@@ -1,0 +1,205 @@
+#!/sbin/sh
+# An extensible custom Hybris Installer script.
+# https://git.io/fjMH9
+
+# Details about this version:
+#   Device  : %DEVICE%
+#   Release : %VERSION%
+#   Date    : %DATE%
+#   Size    : ~%IMAGE_SIZE%
+
+# >>> TWRP init >>>
+
+OUTFD="/proc/self/fd/$2" # e.g. "/proc/self/fd/28"
+ZIPFILE="$3"             # e.g. "/sdcard/%DST_PKG%.zip"
+FILES="/tmp/hybris-installer"
+
+# Set progress bar percentage using a fraction ($1) in range 0.00 - 1.00
+set_progress() { echo -e "set_progress $1\n" > $OUTFD; }
+
+# Print some text ($1) on the screen
+ui_print() { [ -z "$1" ] && echo -e "ui_print  \nui_print" > $OUTFD || echo -e "ui_print $@\nui_print" > $OUTFD; }
+
+# Log some text ($1) for script debugging
+log() { echo "hybris-installer: $@"; }
+
+# Remove package residue files from /tmp and unmount partitions
+cleanup() { log "Cleaning up..."; umount /system; rm -rf $FILES/; }
+
+# Before quitting with an exit code ($1), show a message ($2)
+abort() { ui_print "E$1: $2"; cleanup; exit $1; }
+
+# <<< TWRP init <<<
+
+# Constants & variables
+VERSION="%VERSION_ID%" # e.g. "3.4.0.24"
+TARGET_LOS_VER="%LOS_VER%" # e.g. "16.0"
+TARGET_DEVICE="%DEVICE%" # e.g. "cheeseburger"
+CURRENT_DEVICE=`getprop ro.product.device`
+START_SECS=`date +'%s'`
+ROOT="/data/.stowaways/sailfishos"
+FORCE_REINSTALL=0
+PARTITION_PREFIX="/dev/block/bootdevice/by-name"
+PARTITION_BOOT="$PARTITION_PREFIX/boot"
+PARTITION_VENDOR="$PARTITION_PREFIX/vendor"
+PARTITION_PERSIST="$PARTITION_PREFIX/persist"
+
+# >>> Sanity checks >>>
+
+# Device
+[ "$CURRENT_DEVICE" != "$TARGET_DEVICE" ] && abort 7 "This package is for '$TARGET_DEVICE' devices; this is a '$CURRENT_DEVICE'."
+
+# ext4 check for /data (& /cache)
+(mount | grep -q /cache || mount /cache) &&
+	(mount | grep -q "/cache.*ext4" || abort 1 "Cache is NOT formatted as ext4; check out 'Wipe > Advanced' from TWRP!") ||
+	log "Couldn't mount /cache! Is this an A/B device by any chance?"
+(mount | grep -q /data || mount /data) || abort 2 "Couldn't mount /data; running e2fsck and rebooting may help."
+mount | grep -q "/data.*ext4" || abort 3 "Data is NOT formatted as ext4; check out 'Wipe > Advanced' from TWRP!"
+
+# Treble
+[ -r $PARTITION_VENDOR ] || abort 4 "A vendor partition doesn't exist; you need to do an OTA from OxygenOS 5.1.5 to 5.1.6!"
+
+# Android
+(mount | grep -q /system || mount /system) || abort 5 "Couldn't mount /system!"
+if [ `cat /system/build.prop | grep lineage.build.version= | cut -d'=' -f2` != "$TARGET_LOS_VER" ]; then
+	if [ ! -f /tmp/sfos_flash_confirm ]; then
+		touch /tmp/sfos_flash_confirm
+		abort 6 "If you don't know what you're doing: please factory reset & dirty flash LineageOS $TARGET_LOS_VER before this zip. Otherwise reflash again to confirm force flashing of SFOS."
+	fi
+	log "About to perform forced flash of SFOS"
+fi
+[ -f /system/bin/toybox ] || abort 8 "Your ROM doesn't ship with toybox; extracting of SFOS rootfs isn't possible!"
+if [ -f $ROOT/etc/os-release ]; then
+	if [ ! -f /tmp/sfos_fresh_confirm ]; then
+		touch /tmp/sfos_fresh_confirm
+		abort 9 "This zip is NOT an OTA and should not be treated like one. Please reflash once more to confirm a full SFOS reinstall!"
+	fi
+	FORCE_REINSTALL=1
+	log "About to perform forced reinstall of SFOS; preserving droid-boot image..."
+	mv $ROOT/boot/droid-boot.img /tmp/
+fi
+rm -f /tmp/sfos_f{la,re}sh_confirm
+
+# <<< Sanity checks <<<
+
+# >>> Script >>>
+
+# Reset shown progress bar to 0%
+set_progress 0
+
+# Calculate centering offset indent on left
+offset=`echo -n $VERSION | wc -m 2> /dev/null` # Character length of the version string
+offset=`expr 52 - 23 - $offset`                # Remove constant string chars from offset calculation
+offset=`expr $offset / 2`                      # Get left offset char count instead of space on both sides
+
+# Build the left side indentation offset string
+for i in `seq 1 $offset`; do indent="${indent} "; done
+
+# Splash
+ui_print
+ui_print "-===============- Hybris Installer -===============-"
+ui_print
+ui_print "                          .':oOl."
+ui_print "                       ':c::;ol."
+ui_print "                    .:do,   ,l."
+ui_print "                  .;k0l.   .ll.             .."
+ui_print "                 'ldkc   .,cdoc:'.    ..,;:::;"
+ui_print "                ,o,;o'.;::;'.  'coxxolc:;'."
+ui_print "               'o, 'ddc,.    .;::::,."
+ui_print "               cl   ,x:  .;:c:,."
+ui_print "               ;l.   .:ldoc,."
+ui_print "               .:c.    .:ll,"
+ui_print "                 'c;.    .;l:"
+ui_print "                   :xc.    ,o'"
+ui_print "                   'xxc.   ;o."
+ui_print "                   :l'c: ,lo,"
+ui_print "                  ,o'.ooclc'"
+ui_print "                .:l,,x0o;."
+ui_print "              .;llcldl,"
+ui_print "           .,oOOoc:'"
+ui_print "       .,:lddo:'."
+ui_print "      oxxo;."
+ui_print
+ui_print "${indent}Installing Sailfish OS $VERSION"
+ui_print "                   Please wait ..."
+
+# Start
+log "Extracting package '$ZIPFILE'..."
+mkdir -p $FILES/
+unzip -o "$ZIPFILE" -x META-INF/* -d $FILES/
+
+log "Extracting SFOS rootfs..."
+ARCHIVE="$FILES/sfos-rootfs.tar.bz2"
+rm -rf $ROOT/
+mkdir -p $ROOT/
+/system/bin/toybox tar -xj -f $ARCHIVE -C $ROOT/ || abort 10 "Couldn't extract SFOS rootfs!"
+rm $ARCHIVE
+
+log "Fixing up init scripts..."
+sed -e "/extraenv/s/^/#/g" -e "/import \/init.\${ro.hardware}.rc/s/^/#/" -e "/ro.zygote/s/^/#/g" -e "/start update_verifier/s/^/#/g" \
+    -e "s/\/cpus\ /\/cpuset.cpus /g" -e "s/\/cpus$/\/cpuset.cpus/g" -e "s/\/mems\ /\/cpuset.mems /g" -e "s/\/mems$/\/cpuset.mems/g" \
+    -i $ROOT/init.rc || log "Couldn't fix-up init script!"
+rm $ROOT/init.extraenv.armeabi-v7a.rc
+
+log "Disabling forced encryption in vendor fstab..."
+(umount /vendor &> /dev/null; mount -o rw /vendor && sed "s/fileencryption/encryptable/" -i /vendor/etc/fstab.qcom) || log "Couldn't disable forced encryption!"
+umount /vendor &
+
+if [[ "$TARGET_LOS_VER" = "16.0" && ! -f $ROOT/lib/systemd/system/mnt-vendor-persist.mount ]]; then
+	log "Mount unit for persist not found; copying current /persist to rootfs..."
+	mkdir -p $ROOT/mnt/vendor/persist /persist
+	if mount $PARTITION_PERSIST /persist; then
+		cp -a /persist/ $ROOT/mnt/vendor/
+		umount /persist
+	else
+		log "Couldn't mount $PARTITION_PERSIST! Skipping copying..."
+	fi
+fi
+
+if [ "$FORCE_REINSTALL" = "0" ]; then
+	log "Backing up droid-boot image..."
+	dd if=$PARTITION_BOOT of=$ROOT/boot/droid-boot.img bs=4m
+elif [ -f /tmp/droid-boot.img ]; then
+	log "Moving back droid-boot image..."
+	mv /tmp/droid-boot.img $ROOT/boot/
+fi
+
+log "Writing hybris-boot image..."
+dd if=$ROOT/boot/hybris-boot.img of=$PARTITION_BOOT bs=4m || abort 11 "Couldn't write Hybris boot image!"
+
+log "Symlinking boot images to /sdcard..."
+ln -s $ROOT/boot/droid-boot.img /sdcard/
+ln -s $ROOT/boot/hybris-boot.img /sdcard/
+
+# <<< Script <<<
+
+# Succeeded.
+log "Sailfish OS installed successfully."
+
+# Prepare string for elapsed install time
+end_secs=`date +'%s'`
+elapsed_secs=`expr $end_secs - $START_SECS`
+time_string="" # e.g. "3m 32s"
+if [ "$elapsed_secs" -gt 60 ]; then
+	time_mins=`expr $elapsed_secs / 60`
+	time_secs=`expr $elapsed_secs - $time_mins \* 60`
+	if [ "$time_secs" -gt 0 ]; then
+		time_string="${time_mins}m ${time_secs}s"
+	else
+		time_string="${time_mins}m"
+	fi
+else
+	time_string="${elapsed_secs}s"
+fi
+
+# Center the "All done" text
+offset=`echo -n $time_string | wc -m 2> /dev/null`
+offset=`expr 52 - 33 - $offset`
+offset=`expr $offset / 2`
+indent=""
+for i in `seq 1 $offset`; do indent="${indent} "; done
+
+ui_print "${indent}All done in ~${time_string}, enjoy your new OS!"
+ui_print
+cleanup
+exit 0
