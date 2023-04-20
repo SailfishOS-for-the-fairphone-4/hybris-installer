@@ -16,7 +16,7 @@ To get a quick start you can simply execute the following in your PLATFORM_SDK e
 cd $ANDROID_ROOT/
 git clone https://github.com/sailfishos-oneplus5/hybris-installer hybris/hybris-installer/
 mkdir hybris/droid-configs/kickstart/
-curl -L https://git.io/Je2JI -o hybris/droid-configs/kickstart/pack_package-droid-updater
+curl -L https://raw.githubusercontent.com/SailfishOS-for-the-fairphone-4/droid-configs-FP4/master/kickstart/pack_package-droid-updater -o hybris/droid-configs/kickstart/pack_package-droid-updater
 ```
 
 I do however recommend forking the project to keep up-to-date with any changes I may make here and rebase easily when considering using this long-term :)
