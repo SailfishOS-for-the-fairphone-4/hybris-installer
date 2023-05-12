@@ -1,9 +1,7 @@
 # hybris-installer
-A visually appealing & extensible custom Hybris Installer script by default specialized for cheeseburger (OnePlus 5) & dumpling (OnePlus 5T) devices.
+A visually appealing & extensible custom Hybris Installer script by default for the OnePlus 5 & OnePlus 5T devices, now rewritten for the FP4 (Fairphone 4).
 
-This replaces the default hybris-boot installer script implementation & requires a [custom pack_package-droid-updater](https://github.com/sailfishos-oneplus5/droid-config-cheeseburger/blob/master/kickstart/pack_package-droid-updater) file in your droid-configs which expects **this whole repo** to be cloned in `$ANDROID_ROOT/hybris/hybris-installer/`.
-
-Feel free to fork and adapt (see guide below the screenshot) to your device's needs! ^^
+This replaces the default hybris-boot installer script implementation.
 
 ## Screenshot
 
