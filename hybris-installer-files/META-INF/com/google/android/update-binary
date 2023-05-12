@@ -136,13 +136,14 @@ mkdir -p $ROOT/
 rm $ARCHIVE
 
 log "Fixing up init scripts..."
+cp $ROOT/usr/libexec/droid-hybris/system/etc/init/hw/init.rc $ROOT/init.rc
 sed -e "/extraenv/s/^/#/g" -e "/import \/init.\${ro.hardware}.rc/s/^/#/" -e "/ro.zygote/s/^/#/g" -e "/start update_verifier/s/^/#/g" \
     -e "s/\/cpus\ /\/cpuset.cpus /g" -e "s/\/cpus$/\/cpuset.cpus/g" -e "s/\/mems\ /\/cpuset.mems /g" -e "s/\/mems$/\/cpuset.mems/g" \
     -i $ROOT/init.rc || log "Couldn't fix-up init script!"
 rm $ROOT/init.extraenv.armeabi-v7a.rc
 
 log "Disabling forced encryption in vendor fstab..."
-(umount /vendor &> /dev/null; mount -o rw /vendor && sed "s/fileencryption/encryptable/" -i /vendor/etc/fstab.qcom) || log "Couldn't disable forced encryption!"
+(umount /vendor &> /dev/null; mount -o rw /vendor && sed "s/fileencryption/encryptable/" -i /vendor/etc/fstab.default) || log "Couldn't disable forced encryption!"
 umount /vendor &
 
 if [[ "$TARGET_LOS_VER" = "16.0" && ! -f $ROOT/lib/systemd/system/mnt-vendor-persist.mount ]]; then
