@@ -12,7 +12,7 @@ This replaces the default hybris-boot installer script implementation.
 To get a quick start you can simply execute the following in your PLATFORM_SDK environment:
 ```
 cd $ANDROID_ROOT/
-git clone https://github.com/sailfishos-oneplus5/hybris-installer hybris/hybris-installer/
+git clone https://github.com/SailfishOS-for-the-fairphone-4/hybris-installer hybris/hybris-installer/
 mkdir hybris/droid-configs/kickstart/
 curl -L https://raw.githubusercontent.com/SailfishOS-for-the-fairphone-4/droid-configs-FP4/master/kickstart/pack_package-droid-updater -o hybris/droid-configs/kickstart/pack_package-droid-updater
 ```
