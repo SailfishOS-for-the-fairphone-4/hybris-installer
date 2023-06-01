@@ -129,7 +129,7 @@ mkdir -p $FILES/
 unzip -o "$ZIPFILE" -x META-INF/* -d $FILES/
 
 log "Extracting SFOS rootfs..."
-ARCHIVE="$FILES/sfos-rootfs.tar.bz2"
+ARCHIVE="$FILES/sfos-rootfs.tar.gz"
 rm -rf $ROOT/
 mkdir -p $ROOT/
 /system/bin/toybox tar -xvz -f $ARCHIVE -C $ROOT/ || abort 10 "Couldn't extract SFOS rootfs!"
