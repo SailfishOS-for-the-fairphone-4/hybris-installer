@@ -40,7 +40,8 @@ START_SECS=`date +'%s'`
 ROOT="/data/.stowaways/sailfishos"
 FORCE_REINSTALL=0
 PARTITION_PREFIX="/dev/block/bootdevice/by-name"
-PARTITION_BOOT="$PARTITION_PREFIX/boot_a"
+PARTITION_BOOT_A="$PARTITION_PREFIX/boot_a"
+PARTITION_BOOT_B="$PARTITION_PREFIX/boot_b"
 PARTITION_VENDOR="$PARTITION_PREFIX/vendor"
 PARTITION_PERSIST="$PARTITION_PREFIX/persist"
 
@@ -159,14 +160,15 @@ fi
 
 if [ "$FORCE_REINSTALL" = "0" ]; then
 	log "Backing up droid-boot image..."
-	dd if=$PARTITION_BOOT of=$ROOT/boot/droid-boot.img bs=4m
+	dd if=$PARTITION_BOOT_A of=$ROOT/boot/droid-boot.img bs=4m
 elif [ -f /tmp/droid-boot.img ]; then
 	log "Moving back droid-boot image..."
 	mv /tmp/droid-boot.img $ROOT/boot/
 fi
 
 log "Writing hybris-boot image..."
-dd if=$ROOT/boot/hybris-boot.img of=$PARTITION_BOOT bs=4m || abort 11 "Couldn't write Hybris boot image!"
+dd if=$ROOT/boot/hybris-boot.img of=$PARTITION_BOOT_A bs=4m || abort 11 "Couldn't write Hybris boot image!"
+dd if=$ROOT/boot/hybris-boot.img of=$PARTITION_BOOT_B bs=4m || abort 11 "Couldn't write Hybris boot image!"
 
 log "Symlinking boot images to /sdcard..."
 ln -s $ROOT/boot/droid-boot.img /sdcard/
